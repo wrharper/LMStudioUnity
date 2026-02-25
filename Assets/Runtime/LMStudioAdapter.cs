@@ -4,8 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
+using UndreamAI.LlamaLib;
 
-namespace UndreamAI.LlamaLib
+namespace LLMUnity
 {
     /// <summary>
     /// Adapter that makes LMStudioClient compatible with the LlamaLib.LLMClient interface.
@@ -41,22 +42,22 @@ namespace UndreamAI.LlamaLib
     /// </summary>
     public class LMStudioAdapter : LLMLocal
     {
-        private LLMUnity.LMStudioClient lmStudioClient;
+        private LMStudioClient lmStudioClient;
         private JObject cachedParameters;
 
         public LMStudioAdapter(string host = "localhost", int port = 1234, string apiKey = "", int numRetries = 5)
         {
-            lmStudioClient = new LLMUnity.LMStudioClient(host, port, apiKey, numRetries);
+            lmStudioClient = new LMStudioClient(host, port, apiKey, numRetries);
             cachedParameters = new JObject();
             llamaLib = null; // No native library needed for LM Studio
         }
 
-        public bool IsServerAlive()
+        public override bool IsServerAlive()
         {
             return lmStudioClient.IsServerAlive().Result;
         }
 
-        public List<int> Tokenize(string content)
+        public override List<int> Tokenize(string content)
         {
             if (string.IsNullOrEmpty(content))
                 throw new ArgumentNullException(nameof(content));
@@ -64,7 +65,7 @@ namespace UndreamAI.LlamaLib
             return lmStudioClient.Tokenize(content).Result;
         }
 
-        public string Detokenize(List<int> tokens)
+        public override string Detokenize(List<int> tokens)
         {
             if (tokens == null)
                 throw new ArgumentNullException(nameof(tokens));
@@ -72,7 +73,7 @@ namespace UndreamAI.LlamaLib
             return lmStudioClient.Detokenize(tokens).Result;
         }
 
-        public List<float> Embeddings(string content)
+        public override List<float> Embeddings(string content)
         {
             if (string.IsNullOrEmpty(content))
                 throw new ArgumentNullException(nameof(content));
@@ -80,7 +81,7 @@ namespace UndreamAI.LlamaLib
             return lmStudioClient.GetEmbeddings(content).Result;
         }
 
-        public void SetCompletionParameters(JObject parameters)
+        public override void SetCompletionParameters(JObject parameters)
         {
             if (parameters != null)
             {
@@ -88,17 +89,17 @@ namespace UndreamAI.LlamaLib
             }
         }
 
-        public void SetGrammar(string grammar)
+        public override void SetGrammar(string grammar)
         {
             lmStudioClient.SetGrammar(grammar);
         }
 
-        public void Cancel(int idSlot)
+        public override void Cancel(int idSlot)
         {
             lmStudioClient.Cancel(idSlot);
         }
 
-        public string ApplyTemplate(JArray messages)
+        public override string ApplyTemplate(JArray messages)
         {
             if (messages == null)
                 throw new ArgumentNullException(nameof(messages));
@@ -106,7 +107,7 @@ namespace UndreamAI.LlamaLib
             return lmStudioClient.ApplyTemplate(messages).Result;
         }
 
-        public async Task<string> CompletionAsync(string prompt, LlamaLib.CharArrayCallback callback = null, int idSlot = -1)
+        public override async Task<string> CompletionAsync(string prompt, LlamaLib.CharArrayCallback callback = null, int idSlot = -1)
         {
             if (string.IsNullOrEmpty(prompt))
                 throw new ArgumentNullException(nameof(prompt));
@@ -120,7 +121,7 @@ namespace UndreamAI.LlamaLib
                     // Wrap for IL2CPP compatibility if needed
                     try
                     {
-                        callback(chunk.ToCharArray(), chunk.Length);
+                        callback(chunk);
                     }
                     catch { /* Ignore callback errors */ }
                 };
@@ -129,7 +130,7 @@ namespace UndreamAI.LlamaLib
             return await lmStudioClient.Completion(prompt, cachedParameters, streamCallback);
         }
 
-        public JObject GetCompletionParameters()
+        public override JObject GetCompletionParameters()
         {
             return cachedParameters ?? new JObject();
         }

@@ -6,7 +6,7 @@ using System.IO;
 using System.Threading.Tasks;
 using UndreamAI.LlamaLib;
 using UnityEngine;
-using Unity.Plastic.Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Linq;
 using System.Threading;
 
 namespace LLMUnity
@@ -214,7 +214,7 @@ namespace LLMUnity
         #endregion
 
         #region Private Fields
-        protected UndreamAI.LlamaLib.LLMClient llmClient;
+        protected UndreamAI.LlamaLib.LLMLocal llmClient;
         private bool started = false;
         private string completionParametersCache = "";
         private readonly SemaphoreSlim startSemaphore = new SemaphoreSlim(1, 1);
@@ -301,7 +301,7 @@ namespace LLMUnity
                 else
                 {
                     // Use LMStudioAdapter for remote connections to ensure proper LM Studio API support
-                    var adapter = new UndreamAI.LlamaLib.LMStudioAdapter(host, port, APIKey, numRetries);
+                    var adapter = new LMStudioAdapter(host, port, APIKey, numRetries);
                     
                     // Validate connection before returning
                     var lmStudioClient = new LMStudioClient(host, port, APIKey, numRetries);

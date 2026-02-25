@@ -51,7 +51,7 @@ namespace UndreamAI.LlamaLib
             llamaLib.LLMClient_Set_SSL(llm, SSL_cert ?? string.Empty);
         }
 
-        public bool IsServerAlive()
+        public override bool IsServerAlive()
         {
             return llamaLib.LLMClient_Is_Server_Alive(llm);
         }

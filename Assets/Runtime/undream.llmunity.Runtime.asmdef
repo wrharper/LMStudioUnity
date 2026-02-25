@@ -4,6 +4,6 @@
     "references": [
         "UndreamAI.LlamaLib",
         "Cloud.Unum.USearch",
-        "Unity.Nuget.Newtonsoft-Json"
+        "com.unity.nuget.newtonsoft-json"
     ]
 }

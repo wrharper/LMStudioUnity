@@ -1,10 +1,9 @@
 {
-    "name": "LLMUnitySamples",
+    "name": "LLMUnity.LMStudio",
+    "rootNamespace": "LLMUnity",
     "references": [
-        "undream.llmunity.Runtime",
         "UndreamAI.LlamaLib",
-        "Unity.InputSystem",
-        "com.unity.ugui"
+        "Unity.Nuget.Newtonsoft-Json"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

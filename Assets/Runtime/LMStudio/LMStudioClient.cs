@@ -241,7 +241,7 @@ namespace LLMUnity
                     {
                         var response = JObject.Parse(request.downloadHandler.text);
                         var data = response["data"];
-                        if (data != null && data.Count > 0)
+                        if (data != null && data.Children().Count() > 0)
                         {
                             var embeddingArray = data[0]["embedding"];
                             foreach (var value in embeddingArray)
@@ -331,7 +331,7 @@ namespace LLMUnity
                             // Handle single response
                             var response = JObject.Parse(responseText);
                             var choices = response["choices"];
-                            if (choices != null && choices.Count > 0)
+                            if (choices != null && choices.Children().Count() > 0)
                             {
                                 fullResponse = choices[0]["text"]?.ToString() ?? "";
                             }

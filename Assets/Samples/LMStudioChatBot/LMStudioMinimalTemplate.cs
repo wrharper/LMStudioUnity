@@ -21,7 +21,7 @@ public class LMStudioMinimalTemplate : MonoBehaviour
         llmClient.port = 1234;
         
         // Optional: Test connection
-        LLMStudioSetup.TestLMStudioConnection("localhost", 1234);
+        _ = LMStudioSetup.ValidateConnection("localhost", 1234);
     }
 
     // Step 3: Use it!

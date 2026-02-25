@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using Unity.Plastic.Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Linq;
 
 namespace UndreamAI.LlamaLib
 {
@@ -78,7 +78,7 @@ namespace UndreamAI.LlamaLib
             Dispose();
         }
 
-        public string ApplyTemplate(JArray messages = null)
+        public virtual string ApplyTemplate(JArray messages = null)
         {
             if (messages == null)
                 throw new ArgumentNullException(nameof(messages));
@@ -87,7 +87,7 @@ namespace UndreamAI.LlamaLib
             return Marshal.PtrToStringAnsi(result) ?? string.Empty;
         }
 
-        public List<int> Tokenize(string content)
+        public virtual List<int> Tokenize(string content)
         {
             if (string.IsNullOrEmpty(content))
                 throw new ArgumentNullException(nameof(content));
@@ -105,7 +105,7 @@ namespace UndreamAI.LlamaLib
             return ret;
         }
 
-        public string Detokenize(List<int> tokens)
+        public virtual string Detokenize(List<int> tokens)
         {
             if (tokens == null)
                 throw new ArgumentNullException(nameof(tokens));
@@ -123,7 +123,7 @@ namespace UndreamAI.LlamaLib
             return Detokenize(new List<int>(tokens));
         }
 
-        public List<float> Embeddings(string content)
+        public virtual List<float> Embeddings(string content)
         {
             if (string.IsNullOrEmpty(content))
                 throw new ArgumentNullException(nameof(content));
@@ -143,13 +143,13 @@ namespace UndreamAI.LlamaLib
             return ret;
         }
 
-        public void SetCompletionParameters(JObject parameters = null)
+        public virtual void SetCompletionParameters(JObject parameters = null)
         {
             CheckLlamaLib();
             llamaLib.LLM_Set_Completion_Parameters(llm, parameters?.ToString() ?? string.Empty);
         }
 
-        public JObject GetCompletionParameters()
+        public virtual JObject GetCompletionParameters()
         {
             CheckLlamaLib();
             JObject parameters = new JObject();
@@ -163,7 +163,7 @@ namespace UndreamAI.LlamaLib
             return parameters;
         }
 
-        public void SetGrammar(string grammar)
+        public virtual void SetGrammar(string grammar)
         {
             CheckLlamaLib();
             llamaLib.LLM_Set_Grammar(llm, grammar ?? string.Empty);
@@ -196,7 +196,7 @@ namespace UndreamAI.LlamaLib
             return CompletionInternal(prompt, callback, idSlot);
         }
 
-        public async Task<string> CompletionAsync(string prompt, LlamaLib.CharArrayCallback callback = null, int idSlot = -1)
+        public virtual async Task<string> CompletionAsync(string prompt, LlamaLib.CharArrayCallback callback = null, int idSlot = -1)
         {
             CheckCompletionInternal(prompt);
             return await Task.Run(() => CompletionInternal(prompt, callback, idSlot));
@@ -228,10 +228,15 @@ namespace UndreamAI.LlamaLib
             return Marshal.PtrToStringAnsi(result) ?? string.Empty;
         }
 
-        public void Cancel(int idSlot)
+        public virtual void Cancel(int idSlot)
         {
             CheckLlamaLib();
             llamaLib.LLM_Cancel(llm, idSlot);
+        }
+
+        public virtual bool IsServerAlive()
+        {
+            return true; // Local servers are always "alive"
         }
     }
 

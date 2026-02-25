@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Ensure LMStudio files are always included in the Runtime assembly -->
+  <!-- This targets file ensures that even if Unity regenerates the .csproj, 
+       these files will be compiled into the assembly -->
+  <ItemGroup>
+    <Compile Include="Assets\Runtime\LMStudioAdapter.cs" />
+    <Compile Include="Assets\Runtime\LMStudio\LMStudioClient.cs" />
+    <Compile Include="Assets\Runtime\LMStudio\LMStudioSetup.cs" />
+    <Compile Include="Assets\Runtime\LMStudio\LoraPreprocessor.cs" />
+  </ItemGroup>
+</Project>

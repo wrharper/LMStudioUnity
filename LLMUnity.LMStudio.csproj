@@ -1183,6 +1183,10 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="UndreamAI.LlamaLib.csproj">
+      <Project>{42CC0AC3-FCBC-A1FE-398B-21F23BCF4C6D}</Project>
+      <Name>UndreamAI.LlamaLib</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="GenerateTargetFrameworkMonikerAttribute" />

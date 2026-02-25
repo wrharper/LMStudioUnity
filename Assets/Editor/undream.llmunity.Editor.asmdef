@@ -5,6 +5,6 @@
     ],
     "references": [
         "undream.llmunity.Runtime",
-        "Unity.Nuget.Newtonsoft-Json"
+        "com.unity.nuget.newtonsoft-json"
     ]
 }

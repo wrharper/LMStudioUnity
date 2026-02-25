@@ -1,6 +1,7 @@
 /// @file
 /// @brief Example LM Studio chat bot for LLMUnity
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -83,10 +84,10 @@ namespace LLMUnity.Samples
             conversationHistory.Add("User: " + userMessage);
 
             // Generate response
-            _ = GenerateResponse(userMessage);
+            await GenerateResponse(userMessage);
         }
 
-        private async void GenerateResponse(string userMessage)
+        private async Task GenerateResponse(string userMessage)
         {
             try
             {

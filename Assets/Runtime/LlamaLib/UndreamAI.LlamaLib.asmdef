@@ -2,7 +2,7 @@
     "name": "UndreamAI.LlamaLib",
     "rootNamespace": "UndreamAI.LlamaLib",
     "references": [
-        "Unity.Nuget.Newtonsoft-Json"
+        "com.unity.nuget.newtonsoft-json"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
