@@ -1410,6 +1410,10 @@
       <Project>{7A951933-7B01-886F-9D97-2F7AC50D649D}</Project>
       <Name>Assembly-CSharp</Name>
     </ProjectReference>
+    <ProjectReference Include="LLMUnitySamples.csproj">
+      <Project>{CAC8A4AE-F67E-BA6C-ABD9-D008F5488D90}</Project>
+      <Name>LLMUnitySamples</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="GenerateTargetFrameworkMonikerAttribute" />

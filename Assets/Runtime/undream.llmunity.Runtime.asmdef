@@ -1,0 +1,9 @@
+{
+    "name": "undream.llmunity.Runtime",
+    "rootNamespace": "LLMUnity",
+    "references": [
+        "UndreamAI.LlamaLib",
+        "Cloud.Unum.USearch",
+        "Unity.Nuget.Newtonsoft-Json"
+    ]
+}
