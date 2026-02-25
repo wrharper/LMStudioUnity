@@ -13,10 +13,14 @@ Temp/
 .vs/
 .vsconfig
 UserSettings/
-Assets/StreamingAssets/
+# Binary files (native libraries)
 *.dll
 *.so
 *.dylib
 *.a
 *.lib
+*.o
 .DS_Store
+
+# LlamaLib platform-specific binaries
+Assets/StreamingAssets/
