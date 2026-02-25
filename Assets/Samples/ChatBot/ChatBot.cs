@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine.UI;
@@ -52,13 +53,52 @@ namespace LLMUnitySamples
             aiUI.bubbleColor = aiColor;
             aiUI.leftPosition = 1;
 
-            inputBubble = new InputBubble(chatContainer, playerUI, "InputBubble", "Loading...", 4);
+            inputBubble = new InputBubble(chatContainer, playerUI, "InputBubble", "", 4);
             inputBubble.AddSubmitListener(OnInputFieldSubmit);
             inputBubble.AddValueChangedListener(OnValueChanged);
             inputBubble.setInteractable(false);
             stopButton.gameObject.SetActive(true);
+            
+            // Set initial button state based on warmup
+            Button[] buttons = stopButton.GetComponentsInParent<Button>();
+            foreach (var btn in buttons)
+            {
+                // Disable all send-like buttons until warmup completes
+                if (btn.name.Contains("Send") || btn.name.Contains("submit"))
+                    btn.interactable = false;
+            }
+            
             ShowLoadedMessages();
-            _ = llmAgent.Warmup(WarmUpCallback);
+            
+            // Start warmup - this enables input when complete
+            StartCoroutine(InitializeWithWarmup());
+        }
+
+        private System.Collections.IEnumerator InitializeWithWarmup()
+        {
+            Debug.Log("[ChatBot] Starting LLMAgent warmup...");
+            bool warmupCompleted = false;
+            
+            // Call warmup with callback
+            llmAgent.Warmup(() => 
+            {
+                Debug.Log("[ChatBot] Warmup callback executed");
+                warmupCompleted = true;
+                WarmUpCallback();
+            });
+            
+            // Wait for warmup to complete with timeout
+            float timeout = Time.time + 15f; // 15 second timeout
+            while (!warmupCompleted && Time.time < timeout)
+            {
+                yield return null;
+            }
+            
+            if (!warmupCompleted)
+            {
+                Debug.LogWarning("[ChatBot] Warmup timeout - enabling input anyway");
+                WarmUpCallback();
+            }
         }
 
         Bubble AddBubble(string message, bool isPlayerMessage)
@@ -109,6 +149,7 @@ namespace LLMUnitySamples
         public void AllowInput()
         {
             blockInput = false;
+            inputBubble.setInteractable(true);  // Show placeholder and enable interactivity
             inputBubble.ReActivateInputField();
         }
 
@@ -118,7 +159,7 @@ namespace LLMUnitySamples
             AllowInput();
         }
 
-        IEnumerator<string> BlockInteraction()
+        IEnumerator BlockInteraction()
         {
             // prevent from change until next frame
             inputBubble.setInteractable(false);
@@ -166,14 +207,16 @@ namespace LLMUnitySamples
 
         void Update()
         {
-            if (!inputBubble.inputFocused() && warmUpDone)
+            // Only auto-focus if warmup is done and input is enabled
+            if (warmUpDone && !blockInput && !inputBubble.inputFocused())
             {
                 inputBubble.ActivateInputField();
                 StartCoroutine(BlockInteraction());
             }
+            
+            // Destroy bubbles outside the container
             if (lastBubbleOutsideFOV != -1)
             {
-                // destroy bubbles outside the container
                 for (int i = 0; i <= lastBubbleOutsideFOV; i++)
                 {
                     chatBubbles[i].Destroy();

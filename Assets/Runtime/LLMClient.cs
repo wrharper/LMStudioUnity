@@ -263,14 +263,8 @@ namespace LLMUnity
             await startSemaphore.WaitAsync();
             startSemaphore.Release();
             if (GetCaller() == null) LLMUnitySetup.LogError("LLM caller not initialized", true);
-            if (remote && checkConnection)
-            {
-                for (int attempt = 0; attempt <= numRetries; attempt++)
-                {
-                    if (llmClient.IsServerAlive()) break;
-                    await Task.Yield();
-                }
-            }
+            // Note: Don't check connection here - it's blocking. 
+            // Remote adapter has built-in retry logic on actual operations.
         }
 
         /// <summary>

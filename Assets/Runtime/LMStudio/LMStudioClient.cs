@@ -274,11 +274,21 @@ namespace LLMUnity
 
             try
             {
+                // Build messages array for chat/completions endpoint
+                var messages = new JArray
+                {
+                    new JObject
+                    {
+                        ["role"] = "user",
+                        ["content"] = prompt
+                    }
+                };
+
                 var requestBody = new JObject
                 {
                     ["model"] = "local-model", // LM Studio uses "local-model" as identifier
-                    ["prompt"] = prompt,
-                    ["stream"] = streamCallback != null // Only stream if callback is provided
+                    ["messages"] = messages,
+                    ["stream"] = false // LM Studio doesn't support streaming with chat/completions
                 };
 
                 // Add completion parameters if provided
@@ -286,20 +296,27 @@ namespace LLMUnity
                 {
                     foreach (var prop in completionParameters.Properties())
                     {
-                        // Map LlamaLib parameter names to OpenAI API names
-                        string key = MapParameterName(prop.Name);
-                        requestBody[key] = prop.Value;
+                        // Skip parameters that don't apply to chat endpoint
+                        if (prop.Name == "n_predict")
+                        {
+                            requestBody["max_tokens"] = prop.Value;
+                        }
+                        else if (prop.Name != "cache_prompt" && prop.Name != "repeat_last_n")
+                        {
+                            // Map LlamaLib parameter names to OpenAI API names
+                            string key = MapParameterName(prop.Name);
+                            requestBody[key] = prop.Value;
+                        }
                     }
                 }
 
-                // Convert max_tokens if not provided
+                // Set default max_tokens if not provided
                 if (!requestBody.ContainsKey("max_tokens"))
                 {
-                    requestBody["max_tokens"] = requestBody["n_predict"]?.Value<int>() ?? 256;
-                    requestBody.Remove("n_predict");
+                    requestBody["max_tokens"] = 256;
                 }
 
-                using (UnityWebRequest request = new UnityWebRequest($"{apiUrl}/completions", "POST"))
+                using (UnityWebRequest request = new UnityWebRequest($"{apiUrl}/chat/completions", "POST"))
                 {
                     byte[] jsonToSend = Encoding.UTF8.GetBytes(requestBody.ToString());
                     request.uploadHandler = new UploadHandlerRaw(jsonToSend);
@@ -311,6 +328,8 @@ namespace LLMUnity
                         request.SetRequestHeader("Authorization", $"Bearer {apiKey}");
                     }
 
+                    Debug.Log($"[LMStudioClient] Sending chat completion request, max_tokens={requestBody["max_tokens"]}");
+
                     var asyncOp = request.SendWebRequest();
                     while (!asyncOp.isDone)
                     {
@@ -320,26 +339,25 @@ namespace LLMUnity
                     if (request.result == UnityWebRequest.Result.Success)
                     {
                         var responseText = request.downloadHandler.text;
+                        Debug.Log($"[LMStudioClient] Got response, length={responseText.Length}");
 
-                        if (streamCallback != null)
+                        // Parse chat completion response
+                        var response = JObject.Parse(responseText);
+                        var choices = response["choices"];
+                        if (choices != null && choices.Children().Count() > 0)
                         {
-                            // Handle streamed response (SSE format)
-                            fullResponse = ParseStreamedResponse(responseText, streamCallback);
-                        }
-                        else
-                        {
-                            // Handle single response
-                            var response = JObject.Parse(responseText);
-                            var choices = response["choices"];
-                            if (choices != null && choices.Children().Count() > 0)
+                            fullResponse = choices[0]["message"]?["content"]?.ToString() ?? "";
+                            
+                            if (streamCallback != null)
                             {
-                                fullResponse = choices[0]["text"]?.ToString() ?? "";
+                                // If callback provided, emit the complete response in word-sized chunks for UI effect
+                                EmitResponseWithCallback(fullResponse, streamCallback);
                             }
                         }
                     }
                     else
                     {
-                        Debug.LogError($"Completion request failed: {request.error}");
+                        Debug.LogError($"Chat completion request failed: {request.error}");
                     }
                 }
             }
@@ -349,6 +367,21 @@ namespace LLMUnity
             }
 
             return fullResponse;
+        }
+
+        /// <summary>
+        /// Emits response text to callback in word-sized chunks for visual streaming effect
+        /// </summary>
+        private void EmitResponseWithCallback(string response, Action<string> callback)
+        {
+            var words = response.Split(new[] { ' ', '\n', '\t' }, System.StringSplitOptions.None);
+            foreach (var word in words)
+            {
+                if (!string.IsNullOrEmpty(word))
+                {
+                    callback?.Invoke(word + " ");
+                }
+            }
         }
 
         /// <summary>
@@ -432,35 +465,6 @@ namespace LLMUnity
                 tokens.Add(i);
             }
             return tokens;
-        }
-
-        private string ParseStreamedResponse(string responseText, Action<string> streamCallback)
-        {
-            var fullResponse = "";
-            var lines = responseText.Split(new[] { "\n" }, StringSplitOptions.None);
-
-            foreach (var line in lines)
-            {
-                if (line.StartsWith("data: "))
-                {
-                    string jsonStr = line.Substring(6);
-                    if (jsonStr == "[DONE]") break;
-
-                    try
-                    {
-                        var choice = JObject.Parse(jsonStr);
-                        var text = choice["choices"]?[0]?["text"]?.ToString() ?? "";
-                        if (!string.IsNullOrEmpty(text))
-                        {
-                            fullResponse += text;
-                            streamCallback?.Invoke(text);
-                        }
-                    }
-                    catch { /* Skip malformed lines */ }
-                }
-            }
-
-            return fullResponse;
         }
 
         #endregion

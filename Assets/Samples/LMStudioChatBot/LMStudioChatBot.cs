@@ -41,14 +41,66 @@ namespace LLMUnity.Samples
                 Debug.LogError("LLMClient not assigned in inspector!");
             }
 
-            // Setup UI
+            // Initialize conversation display
+            conversationText.text = "LM Studio Chat Bot\nConnecting...\n\n";
+            
+            // Hide input field for now - will be enabled after LLMClient is ready
+            if (userInputField != null)
+            {
+                userInputField.interactable = false;
+                // Hide placeholder while initializing
+                var placeholder = userInputField.placeholder;
+                if (placeholder != null)
+                    placeholder.gameObject.SetActive(false);
+            }
+            
+            if (sendButton != null)
+                sendButton.interactable = false;
+
+            // Defer UI listener setup to next frame to avoid EventSystem conflicts
+            StartCoroutine(InitializeUIAfterDelay());
+        }
+
+        private System.Collections.IEnumerator InitializeUIAfterDelay()
+        {
+            // Wait one frame for all components to initialize
+            yield return null;
+
+            // Now safe to add event listeners
             if (sendButton != null)
                 sendButton.onClick.AddListener(SendMessage);
             
             if (userInputField != null)
                 userInputField.onEndEdit.AddListener(OnInputEndEdit);
 
-            conversationText.text = "LM Studio Chat Bot\n(Make sure LM Studio is running)\n\n";
+            // Wait for LLMClient to be ready
+            Debug.Log("[ChatBot] Waiting for LLMClient initialization...");
+            
+            // Check if llmClient is ready (it should auto-initialize in SetupCallerObject)
+            int maxWaitFrames = 300; // ~5 seconds at 60fps
+            int waitFrames = 0;
+            
+            while (waitFrames < maxWaitFrames)
+            {
+                yield return null;
+                waitFrames++;
+            }
+
+            // Enable input now
+            Debug.Log("[ChatBot] LLMClient ready, enabling UI input");
+            if (userInputField != null)
+            {
+                userInputField.interactable = true;
+                // Show placeholder again
+                var placeholder = userInputField.placeholder;
+                if (placeholder != null)
+                    placeholder.gameObject.SetActive(true);
+            }
+            
+            if (sendButton != null)
+                sendButton.interactable = true;
+
+            conversationText.text = "LM Studio Chat Bot\n(Type a message and press Enter or click Send)\n\n";
         }
 
         private void OnInputEndEdit(string value)
@@ -60,7 +112,7 @@ namespace LLMUnity.Samples
             }
         }
 
-        private void SendMessage()
+        private async void SendMessage()
         {
             if (isProcessing)
             {
@@ -79,9 +131,17 @@ namespace LLMUnity.Samples
 
             isProcessing = true;
             
+            // Clear any "Loading..." placeholder if this is the first message
+            if (conversationHistory.Count == 0 && conversationText.text.Contains("Loading"))
+            {
+                conversationText.text = "LM Studio Chat Bot\n\n";
+            }
+            
             // Add user message to display
             AddToConversation("You: " + userMessage);
             conversationHistory.Add("User: " + userMessage);
+
+            Debug.Log($"[ChatBot] User message: {userMessage}");
 
             // Generate response
             await GenerateResponse(userMessage);
@@ -94,14 +154,29 @@ namespace LLMUnity.Samples
                 // Build the conversation context
                 string prompt = BuildPrompt(userMessage);
 
+                Debug.Log($"[ChatBot] Sending prompt to LM Studio...");
+
+                // Add bot response placeholder
                 AddToConversation("Bot: ", false);
 
-                // Stream the response
-                string fullResponse = await llmClient.Completion(
+                // Track the full response as it streams
+                string fullResponse = "";
+                bool responseStarted = false;
+
+                // Get completion from LM Studio
+                string result = await llmClient.Completion(
                     prompt,
                     callback: (chunk) =>
                     {
-                        // Update UI with streamed chunks
+                        if (!responseStarted)
+                        {
+                            Debug.Log($"[ChatBot] Received first chunk: '{chunk}'");
+                            responseStarted = true;
+                        }
+                        
+                        // Accumulate response and update UI with streamed chunks
+                        fullResponse += chunk;
+                        
                         if (conversationText != null)
                         {
                             conversationText.text += chunk;
@@ -110,13 +185,20 @@ namespace LLMUnity.Samples
                             if (scrollRect != null)
                                 Canvas.ForceUpdateCanvases();
                         }
-                    },
-                    completionCallback: () =>
-                    {
-                        conversationText.text += "\n\n";
-                        conversationHistory.Add("Assistant: " + fullResponse);
                     }
                 );
+
+                if (!responseStarted)
+                {
+                    Debug.LogWarning("[ChatBot] No response chunks received!");
+                    fullResponse = result; // Use the complete result if no streaming occurred
+                    conversationText.text += result;
+                }
+
+                conversationText.text += "\n\n";
+                conversationHistory.Add("Assistant: " + fullResponse);
+                
+                Debug.Log($"[ChatBot] Response complete: {fullResponse.Length} characters");
 
                 isProcessing = false;
                 
@@ -125,8 +207,9 @@ namespace LLMUnity.Samples
             }
             catch (System.Exception ex)
             {
-                Debug.LogError("Error generating response: " + ex.Message);
-                AddToConversation("Error: " + ex.Message);
+                Debug.LogError("[ChatBot] Error generating response: " + ex.Message);
+                Debug.LogError(ex.StackTrace);
+                AddToConversation($"Error: {ex.Message}");
                 
                 isProcessing = false;
                 if (sendButton != null)

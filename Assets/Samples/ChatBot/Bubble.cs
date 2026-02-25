@@ -267,6 +267,11 @@ namespace LLMUnitySamples
         public void setInteractable(bool interactable)
         {
             inputField.interactable = interactable;
+            // Show/hide placeholder based on interactable state
+            if (placeholderObject != null)
+            {
+                placeholderObject.SetActive(interactable);
+            }
         }
 
         public void SetSelectionColorAlpha(float alpha)

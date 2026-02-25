@@ -7,6 +7,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using UndreamAI.LlamaLib;
 using UnityEngine;
+using Newtonsoft.Json;
+using Debug = UnityEngine.Debug;
 
 namespace LLMUnity
 {
@@ -75,6 +77,14 @@ namespace LLMUnity
         {
             get
             {
+                if (remote && remoteChatHistory != null)
+                {
+                    // Return remote chat history as ChatMessage objects
+                    return remoteChatHistory
+                        .Select(m => new ChatMessage(m.role, m.content))
+                        .ToList();
+                }
+                
                 if (llmAgent == null) return new List<ChatMessage>();
 
                 // convert each UndreamAI.LlamaLib.ChatMessage to LLMUnity.ChatMessage
@@ -84,7 +94,19 @@ namespace LLMUnity
             }
             set
             {
-                if (llmAgent != null)
+                if (remote && remoteChatHistory != null)
+                {
+                    // Set remote chat history
+                    remoteChatHistory.Clear();
+                    if (value != null)
+                    {
+                        foreach (var msg in value)
+                        {
+                            remoteChatHistory.Add(new UndreamAI.LlamaLib.ChatMessage(msg.role, msg.content));
+                        }
+                    }
+                }
+                else if (llmAgent != null)
                 {
                     // convert LLMUnity.ChatMessage back to UndreamAI.LlamaLib.ChatMessage
                     var history = value?.Select(m => (UndreamAI.LlamaLib.ChatMessage)m).ToList()
@@ -94,6 +116,11 @@ namespace LLMUnity
                 }
             }
         }
+        #endregion
+
+        #region Private Fields
+        /// <summary>Chat history for remote LM Studio mode</summary>
+        private List<UndreamAI.LlamaLib.ChatMessage> remoteChatHistory = new List<UndreamAI.LlamaLib.ChatMessage>();
         #endregion
 
         #region Unity Lifecycle and Initialization
@@ -107,20 +134,30 @@ namespace LLMUnity
         {
             await base.SetupCallerObject();
 
-            string exceptionMessage = "";
-            try
+            // Only create native LLMAgent for local mode
+            // Remote mode uses HTTP directly via LMStudioAdapter
+            if (!remote)
             {
-                llmAgent = new UndreamAI.LlamaLib.LLMAgent(llmClient, systemPrompt);
+                string exceptionMessage = "";
+                try
+                {
+                    llmAgent = new UndreamAI.LlamaLib.LLMAgent(llmClient, systemPrompt);
+                }
+                catch (Exception ex)
+                {
+                    exceptionMessage = ex.Message;
+                }
+                if (llmAgent == null || exceptionMessage != "")
+                {
+                    string error = "LLMAgent not initialized";
+                    if (exceptionMessage != "") error += ", error: " + exceptionMessage;
+                    LLMUnitySetup.LogError(error, true);
+                }
             }
-            catch (Exception ex)
+            else
             {
-                exceptionMessage = ex.Message;
-            }
-            if (llmAgent == null || exceptionMessage != "")
-            {
-                string error = "LLMAgent not initialized";
-                if (exceptionMessage != "") error += ", error: " + exceptionMessage;
-                LLMUnitySetup.LogError(error, true);
+                // Remote mode: llmAgent stays null, Chat() will use llmClient.Completion() directly
+                Debug.Log("[LLMAgent] Remote mode: using HTTP-based completion (llmAgent=null)");
             }
         }
 
@@ -130,7 +167,11 @@ namespace LLMUnity
         protected override async Task PostSetupCallerObject()
         {
             await base.PostSetupCallerObject();
-            if (slot != -1) llmAgent.SlotId = slot;
+            
+            // Only set slot for local mode (remote mode doesn't support slots)
+            if (llmAgent != null && slot != -1) 
+                llmAgent.SlotId = slot;
+            
             await InitHistory();
         }
 
@@ -147,7 +188,12 @@ namespace LLMUnity
 
         protected override LLMLocal GetCaller()
         {
-            return llmAgent;
+            // In remote mode, return the llmClient (LMStudioAdapter implementing LLMLocal)
+            // In local mode, return the native llmAgent
+            if (remote)
+                return llmClient;
+            else
+                return llmAgent;
         }
 
         /// <summary>
@@ -189,7 +235,18 @@ namespace LLMUnity
         public virtual async Task ClearHistory()
         {
             await CheckCaller(checkConnection: false);
-            llmAgent.ClearHistory();
+            
+            if (llmAgent != null)
+            {
+                // Local mode: clear native agent history
+                llmAgent.ClearHistory();
+            }
+            else
+            {
+                // Remote mode: clear remote chat history
+                remoteChatHistory.Clear();
+                Debug.Log("[LLMAgent] Remote history cleared");
+            }
         }
 
         /// <summary>
@@ -199,7 +256,15 @@ namespace LLMUnity
         public virtual async Task AddUserMessage(string content)
         {
             await CheckCaller();
-            llmAgent.AddUserMessage(content);
+            if (llmAgent != null)
+            {
+                llmAgent.AddUserMessage(content);
+            }
+            else if (remote && remoteChatHistory != null)
+            {
+                remoteChatHistory.Add(new UndreamAI.LlamaLib.ChatMessage("user", content));
+                Debug.Log("[LLMAgent] Added user message to remote history");
+            }
         }
 
         /// <summary>
@@ -209,7 +274,15 @@ namespace LLMUnity
         public virtual async Task AddAssistantMessage(string content)
         {
             await CheckCaller();
-            llmAgent.AddAssistantMessage(content);
+            if (llmAgent != null)
+            {
+                llmAgent.AddAssistantMessage(content);
+            }
+            else if (remote && remoteChatHistory != null)
+            {
+                remoteChatHistory.Add(new UndreamAI.LlamaLib.ChatMessage("assistant", content));
+                Debug.Log("[LLMAgent] Added assistant message to remote history");
+            }
         }
 
         #endregion
@@ -235,34 +308,121 @@ namespace LLMUnity
         public virtual async Task<string> Chat(string query, Action<string> callback = null,
             Action completionCallback = null, bool addToHistory = true)
         {
+            Debug.Log($"[LLMAgent] Chat() called with query: \"{query.Substring(0, Math.Min(50, query.Length))}...\"");
+            
             await CheckCaller();
+            Debug.Log("[LLMAgent] CheckCaller() complete, proceeding with chat...");
+            
             string result = "";
             try
             {
-                LlamaLib.CharArrayCallback wrappedCallback = null;
-                if (callback != null)
-                {
-#if ENABLE_IL2CPP
-                    // For IL2CPP: wrap to IntPtr callback, then wrap for main thread
-                    Action<string> mainThreadCallback = Utils.WrapActionForMainThread(callback, this);
-                    wrappedCallback = IL2CPP_Completion.CreateCallback(mainThreadCallback);
-#else
-                    // For Mono: direct callback wrapping
-                    wrappedCallback = Utils.WrapCallbackForAsync(callback, this);
-#endif
-                }
-
                 SetCompletionParameters();
-                result = await llmAgent.ChatAsync(query, addToHistory, wrappedCallback, false, debugPrompt);
+                
+                if (remote && llmAgent == null)
+                {
+                    // Remote LM Studio mode: use direct HTTP API
+                    Debug.Log("[LLMAgent] Using remote LM Studio mode");
+                    
+                    if (addToHistory) remoteChatHistory.Add(new UndreamAI.LlamaLib.ChatMessage("user", query));
+                    Debug.Log($"[LLMAgent] Chat history size: {remoteChatHistory.Count} messages");
+                    
+                    // Build the prompt with history
+                    string fullPrompt = BuildChatPrompt(query);
+                    Debug.Log($"[LLMAgent] Built prompt ({fullPrompt.Length} chars) with {remoteChatHistory.Count - 1} previous messages");
+                    
+                    // Call through base LLMClient.Completion which handles callback wrapping for remote mode
+                    Debug.Log("[LLMAgent] Sending completion request to LM Studio...");
+                    result = await base.Completion(fullPrompt, callback);
+                    Debug.Log($"[LLMAgent] ✓ Received response ({result?.Length ?? 0} chars)");
+                    
+                    if (addToHistory && result != null) 
+                    {
+                        remoteChatHistory.Add(new UndreamAI.LlamaLib.ChatMessage("assistant", result));
+                        Debug.Log($"[LLMAgent] ✓ Response added to history");
+                    }
+                }
+                else if (llmAgent != null)
+                {
+                    // Local native mode: use the LLMAgent wrapper
+                    Debug.Log("[LLMAgent] Using local native mode");
+                    
+                    LlamaLib.CharArrayCallback wrappedCallback = null;
+                    if (callback != null)
+                    {
+#if ENABLE_IL2CPP
+                        // For IL2CPP: wrap to IntPtr callback, then wrap for main thread
+                        Action<string> mainThreadCallback = Utils.WrapActionForMainThread(callback, this);
+                        wrappedCallback = IL2CPP_Completion.CreateCallback(mainThreadCallback);
+#else
+                        // For Mono: direct callback wrapping
+                        wrappedCallback = Utils.WrapCallbackForAsync(callback, this);
+#endif
+                    }
+
+                    Debug.Log("[LLMAgent] Sending chat to local LLMAgent...");
+                    result = await llmAgent.ChatAsync(query, addToHistory, wrappedCallback, false, debugPrompt);
+                    Debug.Log($"[LLMAgent] ✓ Local chat complete ({result?.Length ?? 0} chars)");
+                }
+                else
+                {
+                    Debug.LogError("[LLMAgent] Neither remote nor local path available!");
+                }
+                
                 if (this == null) return null;
-                if (addToHistory && result != null && save != "") _ = SaveHistory();
+                if (addToHistory && result != null && save != "" && !remote) _ = SaveHistory(); // Only save for local mode
                 if (this != null) completionCallback?.Invoke();
+                
+                Debug.Log("[LLMAgent] Chat() complete");
             }
             catch (Exception ex)
             {
+                Debug.LogError($"[LLMAgent] ✗ Chat error: {ex.Message}");
                 LLMUnitySetup.LogError(ex.Message, true);
             }
             return result;
+        }
+
+        /// <summary>
+        /// Builds a complete prompt from the system prompt, conversation history, and new query.
+        /// Used for remote LM Studio mode to format the prompt for the API.
+        /// The LM Studio API handles message roles, so we include conversation context as natural text.
+        /// </summary>
+        /// <param name="query">The user's new message to add to the prompt</param>
+        /// <returns>Formatted prompt string combining system prompt, history, and query</returns>
+        private string BuildChatPrompt(string query)
+        {
+            var promptBuilder = new System.Text.StringBuilder();
+            
+            // Include system prompt and conversation history as context
+            if (!string.IsNullOrEmpty(systemPrompt))
+            {
+                promptBuilder.AppendLine(systemPrompt);
+                promptBuilder.AppendLine();
+            }
+            
+            // Add conversation history as context
+            if (remoteChatHistory != null && remoteChatHistory.Count > 0)
+            {
+                foreach (var message in remoteChatHistory)
+                {
+                    if (message.role == "user")
+                    {
+                        promptBuilder.AppendLine(message.content);
+                    }
+                    else if (message.role == "assistant")
+                    {
+                        promptBuilder.AppendLine(message.content);
+                    }
+                }
+                promptBuilder.AppendLine();
+            }
+            
+            // Add the new user query
+            promptBuilder.AppendLine(query);
+            
+            string builtPrompt = promptBuilder.ToString();
+            Debug.Log($"[LLMAgent] Built chat prompt:\n{builtPrompt}");
+            return builtPrompt;
         }
 
         /// <summary>
@@ -326,7 +486,17 @@ namespace LLMUnity
 
             try
             {
-                llmAgent.SaveHistory(jsonPath);
+                if (llmAgent != null)
+                {
+                    // Local mode: use native save
+                    llmAgent.SaveHistory(jsonPath);
+                }
+                else if (remote && remoteChatHistory != null)
+                {
+                    // Remote mode: serialize remoteChatHistory to JSON
+                    var json = JsonConvert.SerializeObject(remoteChatHistory, Formatting.Indented);
+                    File.WriteAllText(jsonPath, json);
+                }
                 LLMUnitySetup.Log($"Saved chat history to: {jsonPath}");
             }
             catch (Exception ex)
@@ -356,7 +526,22 @@ namespace LLMUnity
 
             try
             {
-                llmAgent.LoadHistory(jsonPath);
+                if (llmAgent != null)
+                {
+                    // Local mode: use native load
+                    llmAgent.LoadHistory(jsonPath);
+                }
+                else if (remote && remoteChatHistory != null)
+                {
+                    // Remote mode: deserialize from JSON
+                    string json = File.ReadAllText(jsonPath);
+                    var history = JsonConvert.DeserializeObject<List<UndreamAI.LlamaLib.ChatMessage>>(json);
+                    if (history != null)
+                    {
+                        remoteChatHistory.Clear();
+                        remoteChatHistory.AddRange(history);
+                    }
+                }
                 LLMUnitySetup.Log($"Loaded chat history from: {jsonPath}");
             }
             catch (Exception ex)
