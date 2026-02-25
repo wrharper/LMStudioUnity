@@ -13,3 +13,10 @@ Temp/
 .vs/
 .vsconfig
 UserSettings/
+Assets/StreamingAssets/
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+.DS_Store
