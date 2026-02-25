@@ -6,7 +6,7 @@ using System.IO;
 using System.Threading.Tasks;
 using UndreamAI.LlamaLib;
 using UnityEngine;
-using Newtonsoft.Json.Linq;
+using Unity.Plastic.Newtonsoft.Json.Linq;
 using System.Threading;
 
 namespace LLMUnity

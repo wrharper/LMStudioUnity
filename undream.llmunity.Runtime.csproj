@@ -1197,6 +1197,10 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="UndreamAI.LlamaLib.csproj">
+      <Project>{42CC0AC3-FCBC-A1FE-398B-21F23BCF4C6D}</Project>
+      <Name>UndreamAI.LlamaLib</Name>
+    </ProjectReference>
     <ProjectReference Include="Cloud.Unum.USearch.csproj">
       <Project>{EE8F5CBF-59AF-361B-A33F-4ADF33B5C593}</Project>
       <Name>Cloud.Unum.USearch</Name>

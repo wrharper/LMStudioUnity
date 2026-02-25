@@ -64,6 +64,9 @@
     <Compile Include="Assets\TutorialInfo\Scripts\Readme.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Assets\Resources\usearch\windows\libusearch_c.dll" />
+  </ItemGroup>
+  <ItemGroup>
     <Reference Include="UnityEngine">
       <HintPath>C:\Program Files\Unity\Hub\Editor\6000.3.9f1\Editor\Data\Managed\UnityEngine\UnityEngine.dll</HintPath>
       <Private>False</Private>
@@ -1330,6 +1333,22 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="UndreamAI.LlamaLib.csproj">
+      <Project>{42CC0AC3-FCBC-A1FE-398B-21F23BCF4C6D}</Project>
+      <Name>UndreamAI.LlamaLib</Name>
+    </ProjectReference>
+    <ProjectReference Include="undream.llmunity.Editor.csproj">
+      <Project>{C8ADDB0D-69DE-2297-BA6C-364AB4F613C5}</Project>
+      <Name>undream.llmunity.Editor</Name>
+    </ProjectReference>
+    <ProjectReference Include="undream.llmunity.Runtime.csproj">
+      <Project>{99781F3F-041C-8796-FC2F-742856E34F65}</Project>
+      <Name>undream.llmunity.Runtime</Name>
+    </ProjectReference>
+    <ProjectReference Include="Cloud.Unum.USearch.csproj">
+      <Project>{EE8F5CBF-59AF-361B-A33F-4ADF33B5C593}</Project>
+      <Name>Cloud.Unum.USearch</Name>
+    </ProjectReference>
     <ProjectReference Include="LLMUnitySamples.csproj">
       <Project>{CAC8A4AE-F67E-BA6C-ABD9-D008F5488D90}</Project>
       <Name>LLMUnitySamples</Name>
