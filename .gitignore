@@ -7,3 +7,9 @@ bin/
 bin.meta
 *.api
 *.api.meta
+Library/
+Logs/
+Temp/
+.vs/
+.vsconfig
+UserSettings/
