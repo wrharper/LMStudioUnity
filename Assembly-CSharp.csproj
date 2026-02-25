@@ -61,7 +61,20 @@
     <Analyzer Include="C:\Program Files\Unity\Hub\Editor\6000.3.9f1\Editor\Data\Tools\BuildPipeline\Unity.SourceGenerators\Unity.UIToolkit.SourceGenerator.dll" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assets\Samples\RAG\RAGAndLLM_Sample.cs" />
+    <Compile Include="Assets\Samples\MultipleCharacters\MultipleCharacters.cs" />
+    <Compile Include="Assets\Samples\RAG\RAGUtils.cs" />
+    <Compile Include="Assets\Samples\MobileDemo\MobileDemo.cs" />
+    <Compile Include="Assets\Samples\ChatBot\ChatBot.cs" />
+    <Compile Include="Assets\Samples\FunctionCalling\FunctionCalling.cs" />
+    <Compile Include="Assets\Samples\SimpleInteraction\SimpleInteraction.cs" />
     <Compile Include="Assets\TutorialInfo\Scripts\Readme.cs" />
+    <Compile Include="Assets\Samples\RAG\RAG_Sample.cs" />
+    <Compile Include="Assets\Samples\KnowledgeBaseGame\KnowledgeBaseGame.cs" />
+    <Compile Include="Assets\Samples\ChatBot\Bubble.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Assets\Samples\RAG\hamlet_project_gutenberg.txt" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="UnityEngine">
