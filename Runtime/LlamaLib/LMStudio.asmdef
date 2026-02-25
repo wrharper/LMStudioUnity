@@ -1,0 +1,15 @@
+{
+  "name": "LLMUnity.LMStudio",
+  "rootNamespace": "LLMUnity.LMStudio",
+  "references": [
+    "UndreamAI.LlamaLib"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
