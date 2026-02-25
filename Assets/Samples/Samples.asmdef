@@ -2,7 +2,8 @@
     "name": "LLMUnitySamples",
     "rootNamespace": "LLMUnitySamples",
     "references": [
-        "undream.llmunity.Runtime"
+        "undream.llmunity.Runtime",
+        "undream.llmunity.Editor"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
