@@ -16,6 +16,24 @@ namespace LLMUnity
     /// Unity MonoBehaviour base class for LLM client functionality.
     /// Handles both local and remote LLM connections, completion parameters,
     /// and provides tokenization, completion, and embedding capabilities.
+    /// 
+    /// Remote Mode (remote=true):
+    /// - Connects to LM Studio (http://localhost:1234 by default)
+    /// - Uses HTTP OpenAI-compatible API
+    /// - Set host and port in inspector or code
+    /// - LMStudioAdapter handles the connection automatically
+    /// 
+    /// Example Usage:
+    /// <code>
+    /// void Start()
+    /// {
+    ///     llmClient.remote = true;
+    ///     llmClient.host = "localhost";
+    ///     llmClient.port = 1234;
+    ///     
+    ///     string response = await llmClient.Completion("Hello!");
+    /// }
+    /// </code>
     /// </summary>
     public class LLMClient : MonoBehaviour
     {
@@ -42,7 +60,7 @@ namespace LLMUnity
 
         /// <summary>Port number of remote LLM server</summary>
         [Tooltip("Port number of remote LLM server")]
-        [Remote, SerializeField] protected int _port = 13333;
+        [Remote, SerializeField] protected int _port = 1234;
 
         /// <summary>Number of retries of remote LLM server</summary>
         [Tooltip("Number of retries of remote LLM server")]
@@ -282,12 +300,50 @@ namespace LLMUnity
                 }
                 else
                 {
-                    llmClient = new UndreamAI.LlamaLib.LLMClient(host, port, APIKey, numRetries);
+                    // Use LMStudioAdapter for remote connections to ensure proper LM Studio API support
+                    var adapter = new UndreamAI.LlamaLib.LMStudioAdapter(host, port, APIKey, numRetries);
+                    
+                    // Validate connection before returning
+                    var lmStudioClient = new LMStudioClient(host, port, APIKey, numRetries);
+                    bool serverAlive = await lmStudioClient.IsServerAlive();
+                    
+                    if (!serverAlive)
+                    {
+                        string errorMsg = $"Cannot connect to LM Studio at {host}:{port}";
+                        Debug.LogError($"[LM Studio] ✗ {errorMsg}");
+                        Debug.LogError($"[LM Studio] Troubleshooting steps:");
+                        Debug.LogError($"  1. Is LM Studio installed? Download from https://lmstudio.ai");
+                        Debug.LogError($"  2. Is LM Studio running? Open the application");
+                        Debug.LogError($"  3. Start the server: Developer tab > 'Start Server'");
+                        Debug.LogError($"  4. Verify server is listening on {host}:{port}");
+                        if (host != "localhost" && host != "127.0.0.1")
+                        {
+                            Debug.LogError($"  5. For remote server: check network connectivity to {host}");
+                            Debug.LogError($"  6. Check firewall isn't blocking port {port}");
+                        }
+                        exceptionMessage = errorMsg;
+                    }
+                    else
+                    {
+                        // Check if a model is loaded
+                        var models = await lmStudioClient.GetAvailableModels();
+                        if (models == null || models.Count == 0)
+                        {
+                            Debug.LogWarning($"[LM Studio] ⚠ No model loaded in LM Studio");
+                            Debug.LogWarning($"[LM Studio] Solution: Open LM Studio > Search tab > Download a model");
+                        }
+                        else
+                        {
+                            Debug.Log($"[LM Studio] ✓ Connected at {host}:{port}, model: {models[0]}");
+                        }
+                    }
+                    
+                    llmClient = adapter;
                 }
             }
             catch (Exception ex)
             {
-                LLMUnitySetup.LogError(ex.Message);
+                LLMUnitySetup.LogError($"Remote connection error: {ex.Message}");
                 exceptionMessage = ex.Message;
             }
             finally
