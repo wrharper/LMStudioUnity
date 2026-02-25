@@ -1,0 +1,16 @@
+{
+    "name": "LLMUnitySamples",
+    "rootNamespace": "LLMUnitySamples",
+    "references": [
+        "undream.llmunity.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
